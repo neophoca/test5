@@ -7,12 +7,13 @@ from .base import resize_max, norm_label
 
 
 class DatasetB(Dataset):
-    def __init__(self, root, split, label_map, max_size):
+    def __init__(self, root, split, label_map, max_size, num_channels):
         assert split in {"train", "test", "all"}
         self.root = root
         self.split = split
         self.label_map = label_map
         self.max_size = max_size
+        self.num_channels = num_channels
 
         json_files = []
         if split in {"train", "all"}:
@@ -37,7 +38,7 @@ class DatasetB(Dataset):
         img_dir = os.path.dirname(jpath)
         img_path = os.path.join(img_dir, img_name)
 
-        img = Image.open(img_path).convert("RGB")
+        img = Image.open(img_path).convert("L")
         w0, h0 = img.size
 
         boxes, labels, polys = [], [], []
@@ -56,6 +57,8 @@ class DatasetB(Dataset):
         boxes = torch.tensor(boxes, dtype=torch.float32)
         img, boxes = resize_max(img, boxes, self.max_size)
         img_t = F.to_tensor(img) * 2 - 1
+        if self.num_channels == 3:
+            img_t = img_t.repeat(3, 1, 1)     
         _, H, W = img_t.shape
 
         # scale polygons with same factor as resize_max
