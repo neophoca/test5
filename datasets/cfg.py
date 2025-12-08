@@ -1,4 +1,5 @@
 import os
+import colorsys
 
 root_a_xml = "./data/24_chromosomes_object/annotations"
 root_a_img = "./data/24_chromosomes_object/images"
@@ -22,6 +23,24 @@ label_map = {
     "F19": 19, "F20": 20,
     "G21": 21, "G22": 22,
 }
+
+
+
+
+class_colors = {}
+num_pairs = 11
+for pair in range(num_pairs):
+    h = pair / num_pairs 
+    for j in range(2):
+        cid = 2 * pair + j + 1
+        s = 0.9
+        v = 1.0 if j == 0 else 0.7
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+        class_colors[cid] = (r, g, b)
+
+
+class_colors[23] = (1.0, 0.0, 1.0)  # X magenta
+class_colors[24] = (0.0, 1.0, 1.0)  # Y cyan
 
 
 max_size = 640
