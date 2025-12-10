@@ -2,9 +2,13 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_predictions(dataset, model, device, n=4, score_thresh=0.5):
+def plot_predictions(dataset, model, device, n=4, score_thresh=0.5, use_random = True):
     model.eval()
-    idxs = random.sample(range(len(dataset)), n)
+    if use_random:
+        idxs = random.sample(range(len(dataset)), n)
+    else:
+        idxs = list(range(min(n, len(dataset))))
+    
     fig, axes = plt.subplots(1, n, figsize=(15 * n, 15))
     if n == 1:
         axes = [axes]
@@ -35,15 +39,7 @@ def plot_predictions(dataset, model, device, n=4, score_thresh=0.5):
                 continue
             cx = xs.mean()
             cy = ys.mean()
-            ax.text(
-                cx,
-                cy,
-                f"GT {int(lab)}",
-                color="black",
-                fontsize=8,
-                ha="center",
-                va="center",
-                bbox=dict(facecolor="white", alpha=0.8, linewidth=0),
+            ax.text(cx,cy,f"GT {int(lab)}",color="black",fontsize=8,ha="center",va="center",bbox=dict(facecolor="white", alpha=0.8, linewidth=0),
             )
 
         ax.imshow(gt_overlay)
@@ -70,16 +66,7 @@ def plot_predictions(dataset, model, device, n=4, score_thresh=0.5):
                     continue
                 cx = xs.mean()
                 cy = ys.mean()
-                ax.text(
-                    cx,
-                    cy,
-                    f"P {int(lab)}\n{sc:.2f}",
-                    color="white",
-                    fontsize=8,
-                    ha="center",
-                    va="center",
-                    bbox=dict(facecolor="black", alpha=0.7, linewidth=0),
-                )
+                ax.text(cx,cy,f"P {int(lab)}\n{sc:.2f}",color="white",fontsize=8,ha="center",va="center",bbox=dict(facecolor="black", alpha=0.7, linewidth=0))
 
             ax.imshow(pred_overlay)
 

@@ -4,7 +4,11 @@ import colorsys
 root_a_xml = "./data/24_chromosomes_object/annotations"
 root_a_img = "./data/24_chromosomes_object/images"
 
+root_d_xml = "./data/single_chromosomes_object/annotations"
+root_d_img = "./data/single_chromosomes_object/images"
+
 root_b = "./data/Autokary2022_1600x1600"
+root_c = "./data/Chromo-CRCN"
 
 label_map = {
     "1": 1, "2": 2, "3": 3,
