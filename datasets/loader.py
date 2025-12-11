@@ -46,7 +46,7 @@ class DataModule:
     def make_loaders_ab(self) -> Tuple[DataLoader, DataLoader]: #A train + B train / A val + Bv val
         train_ds = ConcatDataset([self.ds_a_train, self.ds_b_train])
         train_loader = DataLoader(train_ds,batch_size=self.conf.batch_size,shuffle=True,num_workers=self.conf.num_workers,collate_fn=collate_bb,)
-        val_ds = ConcatDatasetConcatDataset([self.ds_a_val, self.ds_b_val])
+        val_ds = ConcatDataset([self.ds_a_val, self.ds_b_val])
         val_loader = DataLoader(val_ds,batch_size=self.conf.batch_size,shuffle=False,num_workers=self.conf.num_workers,collate_fn=collate_bb)
         return train_loader, val_loader
 

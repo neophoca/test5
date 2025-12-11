@@ -1,6 +1,7 @@
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
+from .att import maskrcnn_attfpn
 
 def make_maskrcnn_resnet50_fpn(num_classes: int):
     model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights="DEFAULT")
@@ -11,8 +12,10 @@ def make_maskrcnn_resnet50_fpn(num_classes: int):
     model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, 256, num_classes)
     return model
 
+
 MODELS= {
     "maskrcnn_r50_fpn": make_maskrcnn_resnet50_fpn,
+    "maskrcnn_attfpn": maskrcnn_attfpn
 }
 def build_model(name: str, num_classes: int):
     fn = MODELS[name]
