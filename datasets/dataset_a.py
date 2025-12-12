@@ -8,12 +8,13 @@ from .base import resize_max
 
 
 class DatasetA(Dataset):
-    def __init__(self, xml_dir, img_dir, label_map, max_size, num_channels):
+    def __init__(self, xml_dir, img_dir, label_map, max_size, num_channels, with_masks=True):
         self.ann_files = sorted(glob.glob(os.path.join(xml_dir, "*.xml")))
         self.img_dir = img_dir
         self.label_map = label_map
         self.max_size = max_size
         self.num_channels = num_channels
+        self.with_masks = with_masks
 
     def __len__(self):
         return len(self.ann_files)
@@ -46,20 +47,24 @@ class DatasetA(Dataset):
             img_t = img_t.repeat(3, 1, 1)
     
         _, H, W = img_t.shape
-        masks = torch.zeros((boxes.shape[0], H, W), dtype=torch.uint8)
-        for j, box in enumerate(boxes):
-            x1, y1, x2, y2 = box
-            x1 = int(max(min(x1.item(), W - 1), 0))
-            x2 = int(max(min(x2.item(), W), 0))
-            y1 = int(max(min(y1.item(), H - 1), 0))
-            y2 = int(max(min(y2.item(), H), 0))
-            if x2 > x1 and y2 > y1:
-                masks[j, y1:y2, x1:x2] = 1
-    
+
+
         target = {
             "boxes": boxes,
             "labels": torch.tensor(labels, dtype=torch.int64),
-            "masks": masks,
             "image_id": torch.tensor([i]),
         }
+        
+        if self.with_masks:
+            masks = torch.zeros((boxes.shape[0], H, W), dtype=torch.uint8)
+            for j, box in enumerate(boxes):
+                x1, y1, x2, y2 = box
+                x1 = int(max(min(x1.item(), W - 1), 0))
+                x2 = int(max(min(x2.item(), W), 0))
+                y1 = int(max(min(y1.item(), H - 1), 0))
+                y2 = int(max(min(y2.item(), H), 0))
+                if x2 > x1 and y2 > y1:
+                    masks[j, y1:y2, x1:x2] = 1
+    
+            target["masks"] = masks
         return img_t, target
