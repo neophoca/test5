@@ -33,8 +33,6 @@ def _flip_boxes_v(boxes, h):
     boxes[:, 3] = h - y1
     return boxes
 
-
-# C x H x W
 def _hflip(img, target):
     _, h, w = img.shape
     masks = target.get("masks")

@@ -21,7 +21,8 @@ class DatasetD(Dataset):
         xml_path = self.ann_files[i]
         root = ET.parse(xml_path).getroot()
         fname = root.find("filename").text.strip()
-        img = Image.open(os.path.join(self.img_dir, fname)).convert("L")
+        with Image.open(os.path.join(self.img_dir, fname)) as im:
+            img = im.convert("L")
 
         boxes, labels = [], []
         for obj in root.findall("object"):
