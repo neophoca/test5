@@ -34,6 +34,18 @@ class Trainer:
         targets = [{k: v.to(self.device) for k, v in t.items()} for t in targets]
         return images, targets
 
+    def _forward_optional_masks(self, images, targets):
+        if targets is not None and hasattr(self.model, "roi_heads") and self.model.roi_heads.has_mask():
+            if not all(("masks" in t) for t in targets):
+                rh = self.model.roi_heads
+                saved = (rh.mask_roi_pool, rh.mask_head, rh.mask_predictor)
+                rh.mask_roi_pool, rh.mask_head, rh.mask_predictor = None, None, None
+                try:
+                    return self.model(images, targets)
+                finally:
+                    rh.mask_roi_pool, rh.mask_head, rh.mask_predictor = saved
+        return self.model(images, targets)
+
     def train_one_epoch(self, loader, epoch: int) -> float:
         self.model.train()
         running_loss = 0.0
@@ -42,7 +54,8 @@ class Trainer:
             images, targets = augment_batch(images, targets)
             images, targets = self._to_device(images, targets)
 
-            loss_dict = self.model(images, targets)
+            #loss_dict = self.model(images, targets)
+            loss_dict = self._forward_optional_masks(images, targets)
             loss = sum(loss for loss in loss_dict.values())
 
             self.optimizer.zero_grad()
@@ -63,7 +76,8 @@ class Trainer:
         with torch.no_grad():
             for images, targets in loader:
                 images, targets = self._to_device(images, targets)
-                loss_dict = self.model(images, targets)
+                #loss_dict = self.model(images, targets)
+                loss_dict = self._forward_optional_masks(images, targets)
                 loss = sum(loss for loss in loss_dict.values())
                 running_loss += loss.item()
 
