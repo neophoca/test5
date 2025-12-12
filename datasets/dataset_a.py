@@ -22,8 +22,7 @@ class DatasetA(Dataset):
         xml_path = self.ann_files[i]
         root = ET.parse(xml_path).getroot()
         fname = root.find("filename").text.strip()
-        img = Image.open(os.path.join(self.img_dir, fname)).convert("L")     
-
+    
         boxes, labels = [], []
         for obj in root.findall("object"):
             name = obj.find("name").text.strip()
@@ -35,15 +34,19 @@ class DatasetA(Dataset):
             ymax = float(bnd.find("ymax").text)
             boxes.append([xmin, ymin, xmax, ymax])
             labels.append(lab)
-
+    
         boxes = torch.tensor(boxes, dtype=torch.float32)
+    
+        with Image.open(os.path.join(self.img_dir, fname)) as im:
+            img = im.convert("L")
+    
         img, boxes = resize_max(img, boxes, self.max_size)
         img_t = F.to_tensor(img) * 2 - 1
         if self.num_channels == 3:
-            img_t = img_t.repeat(3, 1, 1)      
-
+            img_t = img_t.repeat(3, 1, 1)
+    
         _, H, W = img_t.shape
-        masks = torch.zeros((boxes.shape[0], H, W), dtype=torch.uint8) #we don't really have masks so just gonna pass rects as masks here
+        masks = torch.zeros((boxes.shape[0], H, W), dtype=torch.uint8)
         for j, box in enumerate(boxes):
             x1, y1, x2, y2 = box
             x1 = int(max(min(x1.item(), W - 1), 0))
@@ -52,7 +55,7 @@ class DatasetA(Dataset):
             y2 = int(max(min(y2.item(), H), 0))
             if x2 > x1 and y2 > y1:
                 masks[j, y1:y2, x1:x2] = 1
-
+    
         target = {
             "boxes": boxes,
             "labels": torch.tensor(labels, dtype=torch.int64),

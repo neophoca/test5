@@ -38,7 +38,8 @@ class DatasetB(Dataset):
         img_dir = os.path.dirname(jpath)
         img_path = os.path.join(img_dir, img_name)
 
-        img = Image.open(img_path).convert("L")
+        with Image.open(img_path) as im:
+            img = im.convert("L")
         w0, h0 = img.size
 
         boxes, labels, polys = [], [], []
