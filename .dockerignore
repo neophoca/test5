@@ -1,0 +1,14 @@
+.git
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+weights/
+data/
+runs/
+mlruns/
+*.ipynb
