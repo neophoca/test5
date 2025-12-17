@@ -1,5 +1,7 @@
 services:
   karyo-demo:
+    image: karyo-test
+    container_name: karyo-test
     build: .
     ports:
       - "8000:8000"
