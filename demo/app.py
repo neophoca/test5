@@ -8,7 +8,7 @@ from demo.infer import Predictor
 app = FastAPI()
 predictor = Predictor(
     model_arch=os.getenv("MODEL_ARCH", "maskrcnn_attfpn"),
-    weights_path=os.getenv("WEIGHTS_PATH", "/weights/model.pt"),
+    weights_path=os.getenv("WEIGHTS_PATH", "/weights_demo/model.pth"),
     score_thresh=float(os.getenv("SCORE_THRESH", "0.5")),
 )
 
