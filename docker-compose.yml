@@ -1,0 +1,12 @@
+services:
+  karyo-demo:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MODEL_ARCH: "maskrcnn_attfpn"
+    volumes:
+      - ./weights_demo:/weights_demo
+    command: >
+          bash -lc "curl -L https://github.com/neophoca/test5/releases/download/v0.1.0/maskrcnn_B_ep40.pth -o /weights_demo/model.pt &&
+                    uvicorn demo.app:app --host 0.0.0.0 --port 8000"
