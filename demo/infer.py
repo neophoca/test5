@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from PIL import Image
 from demo.viz import render_overlay_pil, render_karyogram_pil
-from train.models import build_model
+from models.models import build_model
 from train.unsupervised_metrics import UnlabeledSanity
 from datasets.cfg import num_classes as _NUM_CLASSES
 
@@ -21,8 +21,8 @@ def _to_model_tensor(pil_img: Image.Image, num_channels: int) -> torch.Tensor:
     arr = np.array(pil_img, dtype=np.float32) / 255.0  
     t = torch.from_numpy(arr)[None, ...]          
     t = t * 2.0 - 1.0         
-    if num_channels == 3:
-        t = t.repeat(3, 1, 1)
+    if num_channels == 3: #i mean ofc 3
+        t = t.repeat(3, 1, 1) #because maskrcnn takes 3
     return t
 
 def _load_checkpoint_into(model: torch.nn.Module, ckpt_path: str):
@@ -48,7 +48,7 @@ class Predictor:
         self.model_arch = model_arch
         self.weights_path = weights_path
         self.max_size = 640
-        self.num_channels = 1
+        self.num_channels = 3
         self.score_thresh = score_thresh
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
