@@ -37,6 +37,8 @@ def _load_checkpoint_into(model: torch.nn.Module, ckpt_path: str):
     else:
         sd = ckpt
     model.load_state_dict(sd, strict=False)
+    #print("missing", len(r.missing_keys), "unexpected", len(r.unexpected_keys))
+    #print("roi missing", any("roi_heads" in k for k in r.missing_keys))
 
 class Predictor:
     def __init__(

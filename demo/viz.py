@@ -20,31 +20,32 @@ def _mask_center(mask: np.ndarray):
     return int(xs.mean()), int(ys.mean())
 
 def render_overlay_pil(pil_gray: Image.Image, boxes, labels, masks):
-    base = pil_gray.convert("RGB")
+    base = pil_gray.convert("RGBA")
     W, H = base.size
-    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    od = ImageDraw.Draw(overlay)
 
     try:
-        font = ImageFont.truetype("DejaVuSans.ttf", 16)
+        font = ImageFont.truetype("DejaVuSans.ttf", 18)
     except Exception:
         font = ImageFont.load_default()
 
-    for b, lab, m in zip(boxes, labels, masks):
-        color = class_colors.get(int(lab), (0.0, 1.0, 0.0))
-        rgba = (int(color[0]*255), int(color[1]*255), int(color[2]*255), 90)
+    ov = np.zeros((H, W, 4), dtype=np.uint8)
+    for m in masks:
+        ov[m] = (0, 255, 0, 150)
 
-        ys, xs = np.where(m)
-        for x, y in zip(xs.tolist(), ys.tolist()):
-            overlay.putpixel((x, y), rgba)
+    out = Image.alpha_composite(base, Image.fromarray(ov, mode="RGBA"))
+    draw = ImageDraw.Draw(out)
 
+    for lab, m in zip(labels, masks):
         cx, cy = _mask_center(m)
         txt = _id_to_name(int(lab))
-        od.rectangle([cx-10, cy-10, cx+10, cy+10], outline=(0,0,0,180))
-        od.text((cx+6, cy-10), txt, fill=(255, 255, 255, 255), font=font)
+        x0, y0, x1, y1 = draw.textbbox((0, 0), txt, font=font)
+        tw, th = x1 - x0, y1 - y0
+        x = max(0, min(W - tw - 1, cx - tw // 2))
+        y = max(0, min(H - th - 1, cy - th // 2))
+        draw.text((x + 1, y + 1), txt, fill=(0, 0, 0, 255), font=font)
+        draw.text((x, y), txt, fill=(255, 255, 255, 255), font=font)
 
-    out = Image.alpha_composite(base.convert("RGBA"), overlay).convert("RGB")
-    return out
+    return out.convert("RGB")
 
 def _crop_with_pad(pil_gray: Image.Image, mask: np.ndarray, box, pad: int = 5):
     W, H = pil_gray.size
@@ -96,13 +97,12 @@ def render_karyogram_pil(pil_gray: Image.Image, boxes, labels, masks, pad: int =
             img = img.copy()
             img.thumbnail((cell_w - 10, cell_h - 30), Image.BILINEAR)
 
-            # mask overlay (class color)
             color = class_colors.get(int(lab), (0.0, 1.0, 0.0))
             rgba = (int(color[0]*255), int(color[1]*255), int(color[2]*255), 100)
             ov = Image.new("RGBA", img.size, (0, 0, 0, 0))
             ovd = ImageDraw.Draw(ov)
 
-            # resize mask to match thumbnail
+            # resize mask back
             m_img = Image.fromarray((m.astype(np.uint8) * 255), mode="L").resize(img.size, Image.NEAREST)
             m_np = np.array(m_img) > 0
             ys, xs = np.where(m_np)
