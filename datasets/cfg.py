@@ -1,14 +1,19 @@
 import os
 import colorsys
+from pathlib import Path
 
-root_a_xml = "./data/24_chromosomes_object/annotations"
-root_a_img = "./data/24_chromosomes_object/images"
+REPO_ROOT = Path(__file__).resolve().parents[1]   # repo/
+DATA_ROOT = REPO_ROOT/"data" 
 
-root_d_xml = "./data/single_chromosomes_object/annotations"
-root_d_img = "./data/single_chromosomes_object/images"
+root_a_xml = DATA_ROOT / "24_chromosomes_object" / "annotations"
+root_a_img = DATA_ROOT / "24_chromosomes_object" / "images"
 
-root_b = "./data/Autokary2022_1600x1600"
-root_c = "./data/Chromo-CRCN"
+root_d_xml = DATA_ROOT / "single_chromosomes_object" / "annotations"
+root_d_img = DATA_ROOT / "single_chromosomes_object" / "images"
+
+root_b = DATA_ROOT / "Autokary2022_1600x1600"
+root_c = DATA_ROOT / "Chromo-CRCN"
+
 
 label_map = {
     "1": 1, "2": 2, "3": 3,
