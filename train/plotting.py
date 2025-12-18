@@ -94,9 +94,9 @@ def plot_predictions(dataset, model, device, n=4, score_thresh=0.5, iou_thresh=0
             if p >= 0:
                 _overlay_green(ax, pmasks[p], alpha=0.25)
                 cx, cy = _center(pmasks[p], pboxes[p])
-                ax.text(cx, cy, f"GT{gt_labels[g]}/P{plabels[p]}",color="white", fontsize=9, ha="center", va="center",bbox=dict(facecolor="black", alpha=0.6, linewidth=0))
+                ax.text(cx, cy, f"GT{gt_labels[g]}/P{plabels[p]}",color="white", fontsize=7, ha="center", va="center",bbox=dict(facecolor="black", alpha=0.6, linewidth=0))
             else:
-                _overlay_green(ax, gt_masks[g], alpha=0.18)
+                #_overlay_green(ax, gt_masks[g], alpha=0.0)
                 x1, y1, x2, y2 = gt_boxes[g]
                 ax.add_patch(Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, edgecolor="red", linewidth=2))
                 cx, cy = _center(gt_masks[g], gt_boxes[g])

@@ -7,18 +7,12 @@ __all__ = [
     "compute_pq",
     "compute_aji",
     "eval_instance_seg",
+    "get_metrics",
+    "get_metrics_split_size",
 ]
 
 
 def pairwise_iou_masks(g_masks, p_masks):
-    """
-    g_masks: (G,H,W) bool/0-1
-    p_masks: (P,H,W) bool/0-1
-    Returns:
-      iou:   (G,P)
-      inter: (G,P)
-      union: (G,P)
-    """
     if len(g_masks) == 0 or len(p_masks) == 0:
         shape = (len(g_masks), len(p_masks))
         zero = np.zeros(shape, dtype=np.float32)
@@ -34,11 +28,6 @@ def pairwise_iou_masks(g_masks, p_masks):
 
 
 def compute_map50(preds, targets):
-    """
-    mAP@0.5
-      pred: {"boxes": Tensor[N,4], "labels": Tensor[N], "scores": Tensor[N], ...}
-      targ: {"boxes": Tensor[M,4], "labels": Tensor[M], ...}
-    """
     metric = MeanAveragePrecision(
         iou_type="bbox",
         box_format="xyxy",
@@ -60,12 +49,6 @@ def compute_map50(preds, targets):
 
 
 def compute_pq(preds, targets, num_classes, iou_thresh=0.5):
-    """
-    Panoptic Quality (PQ) and mean PQ over classes (mPQ).
-
-      pred["masks"]: np.uint8[N,H,W], pred["labels"]: Tensor[N]
-      gt["masks"]:   np.uint8[M,H,W], gt["labels"]:   Tensor[M]
-    """
     C = num_classes
     iou_sum = np.zeros(C + 1, dtype=np.float64)
     tp = np.zeros(C + 1, dtype=np.float64)
@@ -137,15 +120,10 @@ def compute_pq(preds, targets, num_classes, iou_thresh=0.5):
     denom_all = tp.sum() + 0.5 * fp.sum() + 0.5 * fn.sum()
     PQ_all = float(iou_sum.sum() / (denom_all + 1e-7)) if denom_all > 0 else float("nan")
 
-    return PQ_all, mPQ, pq_per_class[1:] 
+    return PQ_all, mPQ, pq_per_class[1:]
 
 
 def compute_aji(preds, targets):
-    """
-    Aggregated Jaccard Index (AJI) over all images.
-      pred["masks"]: np.uint8[N,H,W]
-      targ["masks"]: np.uint8[M,H,W]
-    """
     num_aji = 0.0
     den_aji = 0.0
 
@@ -204,4 +182,138 @@ def get_metrics(preds, targets, num_classes, iou_thresh=0.5):
         "mPQ": mPQ,
         "PQ_per_class": pq_per_class,
         "AJI": AJI,
+    }
+
+
+def _areas_from_masks_or_boxes(entry):
+    if "masks" in entry and entry["masks"] is not None:
+        m = entry["masks"]
+        if isinstance(m, np.ndarray):
+            if m.size == 0:
+                return np.zeros((0,), dtype=np.float32)
+            mm = m.astype(bool).reshape(m.shape[0], -1)
+            return mm.sum(1).astype(np.float32)
+        else:
+            if m.numel() == 0:
+                return np.zeros((0,), dtype=np.float32)
+            mm = (m > 0).flatten(1)
+            return mm.sum(1).detach().cpu().numpy().astype(np.float32)
+
+    if "boxes" in entry and entry["boxes"] is not None:
+        b = entry["boxes"]
+        if isinstance(b, np.ndarray):
+            if b.size == 0:
+                return np.zeros((0,), dtype=np.float32)
+            w = (b[:, 2] - b[:, 0]).astype(np.float32)
+            h = (b[:, 3] - b[:, 1]).astype(np.float32)
+            return (w * h).astype(np.float32)
+        else:
+            if b.numel() == 0:
+                return np.zeros((0,), dtype=np.float32)
+            w = (b[:, 2] - b[:, 0]).detach().cpu().numpy().astype(np.float32)
+            h = (b[:, 3] - b[:, 1]).detach().cpu().numpy().astype(np.float32)
+            return (w * h).astype(np.float32)
+
+    return np.zeros((0,), dtype=np.float32)
+
+
+def _filter_entry(entry, keep_idx):
+    out = dict(entry)
+    for k in ["masks", "boxes", "labels", "scores"]:
+        if k not in out or out[k] is None:
+            continue
+        v = out[k]
+        if isinstance(v, np.ndarray):
+            out[k] = v[keep_idx]
+        else:
+            out[k] = v[keep_idx]
+    return out
+
+
+def _greedy_match_iou(iou_mat, iou_thresh):
+    G, P = iou_mat.shape
+    gt_to_p = -np.ones(G, dtype=int)
+    p_to_gt = -np.ones(P, dtype=int)
+
+    pairs = [
+        (float(iou_mat[g, p]), g, p)
+        for g in range(G)
+        for p in range(P)
+        if iou_mat[g, p] >= iou_thresh
+    ]
+    pairs.sort(reverse=True, key=lambda x: x[0])
+
+    used_g, used_p = set(), set()
+    for v, g, p in pairs:
+        if g in used_g or p in used_p:
+            continue
+        used_g.add(g)
+        used_p.add(p)
+        gt_to_p[g] = p
+        p_to_gt[p] = g
+
+    return gt_to_p, p_to_gt
+
+
+def get_metrics_split_size(preds, targets, num_classes, iou_thresh=0.5, area_thresh=None, area_quantile=0.5):
+    overall = get_metrics(preds, targets, num_classes, iou_thresh=iou_thresh)
+
+    if area_thresh is None:
+        all_gt_areas = []
+        for t in targets:
+            a = _areas_from_masks_or_boxes(t)
+            if a.size:
+                all_gt_areas.append(a)
+        area_thresh = 0.0 if len(all_gt_areas) == 0 else float(np.quantile(np.concatenate(all_gt_areas), area_quantile))
+
+    preds_short, preds_long = [], []
+    targs_short, targs_long = [], []
+
+    for p, t in zip(preds, targets):
+        pa = _areas_from_masks_or_boxes(p)
+        ta = _areas_from_masks_or_boxes(t)
+
+        Ng = len(ta)
+        Np = len(pa)
+
+        gt_bucket = np.zeros(Ng, dtype=np.int64)
+        gt_bucket[ta >= area_thresh] = 1  # 0=short, 1=long
+
+        pred_bucket = -np.ones(Np, dtype=np.int64)
+
+        if Ng > 0 and Np > 0 and ("masks" in p) and ("masks" in t):
+            gm = t["masks"].astype(bool)
+            pm = p["masks"].astype(bool)
+            iou_mat, _, _ = pairwise_iou_masks(gm, pm)
+            gt_to_p, p_to_gt = _greedy_match_iou(iou_mat, iou_thresh)
+
+            for gi in range(Ng):
+                pj = gt_to_p[gi]
+                if pj >= 0:
+                    pred_bucket[pj] = gt_bucket[gi]
+
+        # unmatched preds -> bucket by their own area
+        if Np > 0:
+            unassigned = pred_bucket < 0
+            pred_bucket[unassigned & (pa < area_thresh)] = 0
+            pred_bucket[unassigned & (pa >= area_thresh)] = 1
+
+        t_idx_s = np.where(gt_bucket == 0)[0]
+        t_idx_l = np.where(gt_bucket == 1)[0]
+        p_idx_s = np.where(pred_bucket == 0)[0]
+        p_idx_l = np.where(pred_bucket == 1)[0]
+
+        preds_short.append(_filter_entry(p, p_idx_s))
+        preds_long.append(_filter_entry(p, p_idx_l))
+        targs_short.append(_filter_entry(t, t_idx_s))
+        targs_long.append(_filter_entry(t, t_idx_l))
+
+    short = get_metrics(preds_short, targs_short, num_classes, iou_thresh=iou_thresh)
+    long = get_metrics(preds_long, targs_long, num_classes, iou_thresh=iou_thresh)
+
+    return {
+        **overall,
+        "area_thresh": float(area_thresh),
+        "short": short,
+        "long": long,
     }

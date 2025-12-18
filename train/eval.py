@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 import torch
 import numpy as np
-from .metrics import get_metrics, compute_map50
+from .metrics import get_metrics, compute_map50, get_metrics_split_size
 from .plotting import plot_predictions
 from .unsupervised_metrics import UnlabeledSanity
 
@@ -74,6 +74,10 @@ class Evaluator:
     def metrics_masks(self, model, loader, num_classes) -> Dict[str, Any]:
         preds, targs = self.collect_masks(model, loader)
         return get_metrics(preds, targs, num_classes=num_classes)
+
+    def metrics_masks_split(self, model, loader, num_classes) -> Dict[str, Any]:
+        preds, targs = self.collect_masks(model, loader)
+        return get_metrics_split_size(preds, targs, num_classes=num_classes)
 
     def map50(self, model, loader) -> float:
         preds, targs = self.collect_boxes(model, loader)
