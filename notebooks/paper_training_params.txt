@@ -1,0 +1,6 @@
+All models (with the same input size of
+1, 600 × 800 and the backbone network of ResNet-50) were
+trained on NVIDIA RTX3090 GPUs using the Adam optimizer
+with a learning rate of 0.0001, decaying every epoch with
+an exponential rate of 0.96. The total number of epochs was
+50, and the batch size was 1.
