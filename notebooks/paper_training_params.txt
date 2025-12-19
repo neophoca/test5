@@ -4,3 +4,18 @@ trained on NVIDIA RTX3090 GPUs using the Adam optimizer
 with a learning rate of 0.0001, decaying every epoch with
 an exponential rate of 0.96. The total number of epochs was
 50, and the batch size was 1.
+
+
+Paper metrics used: https://arxiv.org/pdf/2303.15839
+
+mAP@50 (COCO/pycocotools-style):
+- COCO metric: https://github.com/katsura-jp/coco_evaluater
+- Detectron2 mapping of coco_eval.stats -> AP50: https://detectron2.readthedocs.io/_modules/detectron2/evaluation/coco_evaluation.html
+
+PQ / panoptic:
+- PQ definition: https://openaccess.thecvf.com/content_CVPR_2019/papers/Kirillov_Panoptic_Segmentation_CVPR_2019_paper.pdf
+- panopticapi: https://github.com/cocodataset/panopticapi
+
+AJI:
+- MoNuSeg eval code repo (compute_AJI.m): https://github.com/ruchikaverma-iitg/MoNuSeg
+- AJI description: https://pmc.ncbi.nlm.nih.gov/articles/PMC10439521/

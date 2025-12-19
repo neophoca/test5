@@ -21,6 +21,8 @@ class TrainConfig:
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+
+
 class Trainer:
     def __init__(self, model, train_conf: TrainConfig):
         self.model = model
