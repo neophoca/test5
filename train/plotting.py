@@ -32,6 +32,69 @@ def _overlay_green(ax, mask, alpha=0.25):
     ax.imshow(rgba)
 
 
+def _draw_contours(ax, mask, lw=2.0):
+    if mask is None or not mask.any():
+        return
+    cs = measure.find_contours(mask.astype(np.uint8), 0.5)
+    for c in cs:
+        ax.plot(c[:, 1], c[:, 0], linewidth=lw)
+
+
+def plot_predictions_no_gt(dataset, model, device, n=4, score_thresh=0.5, use_random=True):
+    model.eval()
+    n = min(n, len(dataset))
+    idxs = random.sample(range(len(dataset)), n) if use_random else list(range(n))
+
+    fig, axes = plt.subplots(1, n, figsize=(14 * n, 14))
+    if n == 1:
+        axes = [axes]
+
+    for ax, idx in zip(axes, idxs):
+        img_t, _ = dataset[idx]
+        img = (img_t * 0.5 + 0.5).permute(1, 2, 0).cpu().numpy()
+        img = np.clip(img, 0, 1)
+        H, W = img.shape[:2]
+        ax.imshow(img)
+
+        out = model([img_t.to(device)])[0]
+        scores = out["scores"].detach().cpu().numpy()
+        keep = scores >= score_thresh
+
+        if keep.sum() > 0:
+            pmasks = (out["masks"][keep, 0] > 0.5).detach().cpu().numpy().astype(bool)
+            pboxes = out["boxes"][keep].detach().cpu().numpy().astype(np.float32)
+            plabels = out["labels"][keep].detach().cpu().numpy().astype(int)
+        else:
+            pmasks = np.zeros((0, H, W), dtype=bool)
+            pboxes = np.zeros((0, 4), dtype=np.float32)
+            plabels = np.zeros((0,), dtype=int)
+
+        for p in range(len(pmasks)):
+            _overlay_green(ax, pmasks[p], alpha=0.20)
+            _draw_contours(ax, pmasks[p], lw=2.0)
+
+            x1, y1, x2, y2 = pboxes[p]
+            ax.add_patch(Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, linewidth=2))
+
+            ys, xs = np.where(pmasks[p])
+            if len(xs) > 0:
+                cx, cy = float(xs.mean()), float(ys.mean())
+            else:
+                cx, cy = float((x1 + x2) * 0.5), float((y1 + y2) * 0.5)
+
+            ax.text(
+                cx, cy, f"P{plabels[p]} {scores[keep][p]:.2f}",
+                color="white", fontsize=7, ha="center", va="center",
+                bbox=dict(facecolor="black", alpha=0.6, linewidth=0),
+            )
+
+        ax.set_title(f"idx {idx}")
+        ax.axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+
 def plot_predictions(dataset, model, device, n=4, score_thresh=0.5, iou_thresh=0.5, use_random=True):
     model.eval()
     n = min(n, len(dataset))

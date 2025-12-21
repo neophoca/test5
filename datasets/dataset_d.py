@@ -1,9 +1,28 @@
-import os, glob, xml.etree.ElementTree as ET
+import os
+import glob
+import csv
+import xml.etree.ElementTree as ET
+
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms.functional as F
+
 from .base import resize_max
+
+
+def _read_txt_ids(txt_path):
+    with open(txt_path, "r") as f:
+        return {line.strip() for line in f if line.strip()}
+
+
+def _read_csv_ids(csv_path):
+    ids = set()
+    with open(csv_path, "r", newline="") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            ids.add(os.path.splitext(row["filename"].strip())[0])
+    return ids
 
 
 class DatasetD(Dataset):
@@ -14,6 +33,30 @@ class DatasetD(Dataset):
         self.max_size = max_size
         self.num_channels = num_channels
 
+        self.file_ids = []
+        for p in self.ann_files:
+            root = ET.parse(p).getroot()
+            fname = root.find("filename").text.strip()
+            self.file_ids.append(os.path.splitext(fname)[0])
+
+    def indices_from_txt(self, txt_path):
+        ids = _read_txt_ids(txt_path)
+        return [i for i, fid in enumerate(self.file_ids) if fid in ids]
+
+    def difficult_indices(self, diff_txt_path):
+        return self.indices_from_txt(diff_txt_path)
+
+    def abnormal_indices(self, kind, normal_csv, number_csv, structural_csv):
+        if kind == "normal":
+            ids = _read_csv_ids(normal_csv)
+        elif kind == "number":
+            ids = _read_csv_ids(number_csv)
+        elif kind == "structural":
+            ids = _read_csv_ids(structural_csv)
+        else:
+            ids = set()
+        return [i for i, fid in enumerate(self.file_ids) if fid in ids]
+
     def __len__(self):
         return len(self.ann_files)
 
@@ -21,6 +64,7 @@ class DatasetD(Dataset):
         xml_path = self.ann_files[i]
         root = ET.parse(xml_path).getroot()
         fname = root.find("filename").text.strip()
+
         with Image.open(os.path.join(self.img_dir, fname)) as im:
             img = im.convert("L")
 
@@ -60,10 +104,5 @@ class DatasetD(Dataset):
             if x2 > x1 and y2 > y1:
                 masks[j, y1:y2, x1:x2] = 1
 
-        target = {
-            "boxes": boxes,
-            "labels": torch.tensor(labels, dtype=torch.int64),
-            "masks": masks,
-            "image_id": torch.tensor([i]),
-        }
+        target = {"boxes": boxes, "labels": torch.tensor(labels, dtype=torch.int64), "masks": masks, "image_id": torch.tensor([i])}
         return img_t, target

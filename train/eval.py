@@ -95,6 +95,9 @@ class Evaluator:
         for r in rows:
             print("  ".join(s.ljust(wc) for s, wc in zip(r, w)))
 
-    def show_examples(self, dataset, model, n=1, score_thresh=0.5, iou_thresh=0.5, title="", show_random =False):
+    def show_examples(self, dataset, model, n=1, score_thresh=0.5, iou_thresh=0.5, title="", show_random =False, with_gt=False):
         print(f"\nExamples: {title}")
-        plot_predictions(dataset, model, self.device, n=n, score_thresh=score_thresh, iou_thresh = iou_thresh, use_random = show_random)
+        if gt:
+            plot_predictions(dataset, model, self.device, n=n, score_thresh=score_thresh, iou_thresh = iou_thresh, use_random = show_random)
+        else:
+            plot_predictions_no_gt(dataset, model, self.device, n=n, score_thresh=score_thresh, iou_thresh = iou_thresh, use_random = show_random) 

@@ -19,3 +19,4 @@ PQ / panoptic:
 AJI:
 - MoNuSeg eval code repo (compute_AJI.m): https://github.com/ruchikaverma-iitg/MoNuSeg
 - AJI description: https://pmc.ncbi.nlm.nih.gov/articles/PMC10439521/
+https://omnipose.readthedocs.io/api/api/cellpose_omni.metrics.aggregated_jaccard_index.html
