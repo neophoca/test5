@@ -2,7 +2,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-
+from skimage import measure
 from train.metrics import pairwise_iou_masks
 
 
