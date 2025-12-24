@@ -20,3 +20,7 @@ MODELS= {
 def build_model(name: str, num_classes: int):
     fn = MODELS[name]
     return fn(num_classes)
+
+def build_model2(name: str, num_classes: int, weights_backbone=False,trainable_backbone_layers=5):
+    fn = MODELS[name]
+    return fn(num_classes,weights_backbone=False,trainable_backbone_layers=5)

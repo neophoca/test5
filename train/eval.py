@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 import torch
 import numpy as np
 from .metrics import get_metrics, compute_map50, get_metrics_split_size
-from .plotting import plot_predictions, plot_predictions_no_gt
+from .plotting import plot_predictions, plot_predictions_no_gt, plot_predictions_inst
 from .unsupervised_metrics import UnlabeledSanity
 
 
@@ -95,9 +95,12 @@ class Evaluator:
         for r in rows:
             print("  ".join(s.ljust(wc) for s, wc in zip(r, w)))
 
-    def show_examples(self, dataset, model, n=1, score_thresh=0.5, iou_thresh=0.5, title="", show_random =False, with_gt=False):
+    def show_examples(self, dataset, model, n=1, score_thresh=0.5, iou_thresh=0.5, title="", show_random =False, with_gt=False, with_class=True):
         print(f"\nExamples: {title}")
         if with_gt:
-            plot_predictions(dataset, model, self.device, n=n, score_thresh=score_thresh, iou_thresh = iou_thresh, use_random = show_random)
+            if with_class: #prediction function should be able to sort it out herself but whatever
+                plot_predictions(dataset, model, self.device, n=n, score_thresh=score_thresh, iou_thresh = iou_thresh, use_random = show_random)
+            else:
+                plot_predictions_inst(dataset, model, self.device, n=n, score_thresh=score_thresh, iou_thresh = iou_thresh, use_random = show_random)
         else:
             plot_predictions_no_gt(dataset, model, self.device, n=n, score_thresh=score_thresh, use_random = show_random) 

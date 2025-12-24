@@ -20,6 +20,8 @@ structural_csv = DATA_ROOT / "structural_abnormalities.csv"
 root_b = DATA_ROOT / "Autokary2022_1600x1600"
 root_c = DATA_ROOT / "Chromo-CRCN"
 
+root_custom = DATA_ROOT / "Custom"
+
 label_map = {
     "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
     "10": 10, "11": 11, "12": 12, "13": 13, "14": 14, "15": 15, "16": 16, "17": 17, "18": 18,
