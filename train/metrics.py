@@ -123,6 +123,141 @@ def compute_pq(preds, targets, num_classes, iou_thresh=0.5):
     return PQ_all, mPQ, pq_per_class[1:]
 
 
+
+def aggregated_jaccard(gt_masks: np.ndarray, pred_masks: np.ndarray) -> float:
+    """
+    Aggregated Jaccard Index (AJI) on *lists of instance masks*.
+
+    Inputs:
+      gt_masks:  (Ng, H, W) binary/boolean masks for GT instances
+      pred_masks:(Np, H, W) binary/boolean masks for predicted instances
+
+    Output (as in LongChen sortedAP aggregatedJaccard):
+      - compute intersection matrix between every pred and GT
+      - for each GT: pick the pred with maximum intersection (can repeat preds)
+      - C = sum of intersections of picked pairs where intersection > 0
+      - U = sum(|GT|) + sum(|Pred[picked where inter>0]|) - C + sum(|Pred[unpicked]|)
+      - AJI = C / U  (with the same empty-set handling)
+    """
+    # ---- wrapper: get_metrics() calls aggregated_jaccard(preds, targets) ----
+    if isinstance(gt_masks, list) and (len(gt_masks) == 0 or isinstance(gt_masks[0], dict)):
+        preds = gt_masks
+        targets = pred_masks
+
+        C_total = 0.0
+        U_total = 0.0
+
+        for pd, gt in zip(preds, targets):
+            if "masks" not in pd or "masks" not in gt:
+                continue
+
+            g = gt["masks"]
+            p = pd["masks"]
+
+            if hasattr(g, "detach"):
+                g = g.detach().cpu().numpy()
+            if hasattr(p, "detach"):
+                p = p.detach().cpu().numpy()
+
+            g = np.asarray(g)
+            p = np.asarray(p)
+
+            if g.ndim == 4 and g.shape[1] == 1:
+                g = g[:, 0]
+            if p.ndim == 4 and p.shape[1] == 1:
+                p = p[:, 0]
+
+            # Ensure boolean for correct logical ops.
+            g = g.astype(bool)
+            p = p.astype(bool)
+
+            Ng = int(g.shape[0])
+            Np = int(p.shape[0])
+
+            if Ng == 0 and Np == 0:
+                continue
+            if Ng == 0 or Np == 0:
+                U_total += float(max(g.reshape(Ng, -1).sum() if Ng > 0 else 0.0,
+                                    p.reshape(Np, -1).sum() if Np > 0 else 0.0))
+                continue
+
+            gt_areas = g.reshape(Ng, -1).sum(1).astype(np.float64)
+            pred_areas = p.reshape(Np, -1).sum(1).astype(np.float64)
+
+            # reuse existing helper
+            _, inter_mat, _ = pairwise_iou_masks(g, p)  # (Ng, Np)
+            intersection = inter_mat.T  # (Np, Ng)
+
+            idx = np.argmax(intersection, axis=0)  # per GT: best pred by intersection (includes 0-intersection picks)
+            inter_best = intersection[idx, np.arange(Ng)]
+            idx_e = inter_best > 0
+
+            idx_pd = idx[idx_e]
+            idx_gt = np.arange(Ng)[idx_e]
+
+            C = float(intersection[idx_pd, idx_gt].sum()) if idx_pd.size > 0 else 0.0
+            unmatched = list(set(range(Np)) - set(idx.tolist()))
+            U = float(gt_areas.sum() + pred_areas[idx_pd].sum() - C + pred_areas[unmatched].sum())
+
+            C_total += C
+            U_total += U
+
+        if U_total == 0.0:
+            return 1.0 if C_total == 0.0 else 0.0
+        return float(C_total / U_total)
+
+    # ---- direct call on (Ng,H,W) / (Np,H,W) stacks ----
+    if hasattr(gt_masks, "detach"):
+        gt_masks = gt_masks.detach().cpu().numpy()
+    if hasattr(pred_masks, "detach"):
+        pred_masks = pred_masks.detach().cpu().numpy()
+
+    gt_masks = np.asarray(gt_masks)
+    pred_masks = np.asarray(pred_masks)
+
+    if gt_masks.ndim == 4 and gt_masks.shape[1] == 1:
+        gt_masks = gt_masks[:, 0]
+    if pred_masks.ndim == 4 and pred_masks.shape[1] == 1:
+        pred_masks = pred_masks[:, 0]
+
+    # Ensure boolean for correct logical ops.
+    gt_masks = gt_masks.astype(bool)
+    pred_masks = pred_masks.astype(bool)
+
+    Ng = int(gt_masks.shape[0])
+    Np = int(pred_masks.shape[0])
+
+    if Ng == 0 and Np == 0:
+        return 1.0
+    if Ng == 0 or Np == 0:
+        U = float(max(gt_masks.reshape(Ng, -1).sum() if Ng > 0 else 0.0,
+                      pred_masks.reshape(Np, -1).sum() if Np > 0 else 0.0))
+        return 1.0 if U == 0.0 else 0.0
+
+    gt_areas = gt_masks.reshape(Ng, -1).sum(1).astype(np.float64)
+    pred_areas = pred_masks.reshape(Np, -1).sum(1).astype(np.float64)
+
+    # reuse existing helper
+    _, inter_mat, _ = pairwise_iou_masks(gt_masks, pred_masks)  # (Ng, Np)
+    intersection = inter_mat.T  # (Np, Ng)
+
+    idx = np.argmax(intersection, axis=0)
+    inter_best = intersection[idx, np.arange(Ng)]
+    idx_e = inter_best > 0
+
+    idx_pd = idx[idx_e]
+    idx_gt = np.arange(Ng)[idx_e]
+
+    C = float(intersection[idx_pd, idx_gt].sum()) if idx_pd.size > 0 else 0.0
+    unmatched = list(set(range(Np)) - set(idx.tolist()))
+    U = float(gt_areas.sum() + pred_areas[idx_pd].sum() - C + pred_areas[unmatched].sum())
+
+    if U == 0.0:
+        return 1.0 if C == 0.0 else 0.0
+    return float(C / U)
+
+
+
 def compute_aji(preds, targets):
     num_aji = 0.0
     den_aji = 0.0
@@ -173,8 +308,8 @@ def compute_aji(preds, targets):
 
 def get_metrics(preds, targets, num_classes, iou_thresh=0.5):
     mAP50 = compute_map50(preds, targets)
-    PQ_all, mPQ, pq_per_class = compute_pq(preds, targets, num_classes, iou_thresh=iou_thresh)
-    AJI = compute_aji(preds, targets)
+    #PQ_all, mPQ, pq_per_class = compute_pq(preds, targets, num_classes, iou_thresh=iou_thresh)
+    AJI = aggregated_jaccard(preds, targets)
 
     return {
         "mAP50": mAP50,
